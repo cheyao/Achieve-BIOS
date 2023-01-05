@@ -1,7 +1,5 @@
 #include <stdio.h>
 #include <stdint.h>
-#include <unistd.h>
-#include <stdbool.h>
 #include <stdlib.h>
 
 // A short program to convert a binary file to hex
@@ -10,26 +8,30 @@
 // (You can use it as you want)
 
 int main(int argc, char **argv) {
-	if (argc <= 4) {
+	if (argc < 4) {
 		fprintf(stderr, "Too few arguments provided!\nUsage: bintohex input_file output_file memory_size (hex)");
+		return 1;
 	}
-	FILE *i = fopen(argv[2], "rb"), *o = fopen(argv[2], "rb");
+	FILE *i = fopen(argv[1], "rb");
+	FILE *o = fopen(argv[2], "w");
 	uint64_t size = strtol(argv[3], NULL, 16);
 
-	uint64_t t;
-	uint64_t i;
+	uint64_t t = 0;
+	uint64_t k;
 	while (1) {
-		if (fread(&i, sizeof i, 1, i) != 1)
+		if (fread(&k, sizeof k, 1, i) != 1)
 			break;
 
-		fprintf(o, "%08x ", i);
+		fprintf(o, "%016llx\n", k);
 
 		t++;
 	}
 
-	for (; t < size; t++) {
-		fprintf(o, "00000000000000000000000000000000 ", i);
-	}
+	for (; t < size; t++)
+		fputs("0000000000000000\n", o);
+
+	fclose(o);
+	fclose(i);
 
 	return 0;
 }

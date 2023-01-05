@@ -14,16 +14,19 @@ OBJCOPY := riscv64-unknown-elf-objcopy
 all: AchieveBIOS.hex
 
 AchieveBIOS.hex: AchieveBIOS.bin util/bintohex
-	util/bintohex $< > @@
+	util/bintohex $< $@ 0x100000
 
 AchieveBIOS.bin: $(OBJ)
 	$(LD) $(LDFLAGS) -o $@ $^
 	$(OBJCOPY) -O binary $@
 
+build/%.o: bios/%.S
+	-mkdir build
+	$(AS) $(ASFLAGS) -o $@ $<
+
 build/%.o: bios/%.c
 	-mkdir build
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-build/%.o: bios/%.S
-	-mkdir build
-	$(AS) $(ASFLAGS) -o $@ $<
+util/bintohex: util/bintohex.c
+	gcc -o $@ $< -O2
