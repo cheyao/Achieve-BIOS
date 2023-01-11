@@ -5,10 +5,27 @@ MEMORY {
 }
 
 SECTIONS {
-   everything : {
+   . = 0;
+
+   .text ALIGN(4): {
+      build/start.o (.text)
+      *(.text*)
       . = ALIGN(4);
-      build/start.o (.init)
-      *(.*)
-   } > RAM
+   }
+
+   .data ALIGN(4): {
+      *(.data*)
+      . = ALIGN(4);
+   }
+
+   .rodata ALIGN(4): {
+      *(.rodata*)
+      . = ALIGN(4);
+   }
+
+   .bss ALIGN(4): {
+      *(.bss*)
+      . = ALIGN(4);
+   }
 }
 
