@@ -1,31 +1,27 @@
 ENTRY(_start)
 
-MEMORY {
-   RAM (RWX) : ORIGIN = 0x0000, LENGTH = 0x1800  /* 6kB RAM */
-}
-
 SECTIONS {
-   . = 0;
+   . = 0xFFFFFFFFFFFF0000;
 
-   .text ALIGN(4): {
+   .text ALIGN(8): {
       build/start.o (.text)
       *(.text*)
-      . = ALIGN(4);
+      . = ALIGN(8);
    }
 
-   .data ALIGN(4): {
+   .data ALIGN(8): {
       *(.data*)
-      . = ALIGN(4);
+      . = ALIGN(8);
    }
 
-   .rodata ALIGN(4): {
+   .rodata ALIGN(8): {
       *(.rodata*)
-      . = ALIGN(4);
+      . = ALIGN(8);
    }
 
-   .bss ALIGN(4): {
+   .bss ALIGN(8): {
       *(.bss*)
-      . = ALIGN(4);
+      . = ALIGN(8);
    }
 }
 
