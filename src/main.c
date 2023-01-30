@@ -1,98 +1,95 @@
+/*
+ * @brief Minimal
+ */
+
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
+#include <kernel/ports.h>
 
-#define UART 0xC0003
+#define BLOCK_SIZE 4096
 
-static inline void outd(uint32_t port, uint64_t val) {
-    __asm__ __volatile__("sd %1, 0(%0)"::"r" (0xFFFFFFFF00000000 + port), "r" (val));
-}
-
-static inline void outw(uint32_t port, uint32_t val) {
-    __asm__ __volatile__("sw %1, 0(%0)"::"r" (0xFFFFFFFF00000000 + port), "r" (val));
-}
-
-static inline void outh(uint32_t port, uint16_t val) {
-    __asm__ __volatile__("sh %1, 0(%0)"::"r" (0xFFFFFFFF00000000 + port), "r" (val));
-}
-
-static inline void outb(uint32_t port, uint8_t val) {
-    __asm__ __volatile__("sb %1, 0(%0)"::"r" (0xFFFFFFFF00000000 + port), "r" (val));
-}
-
-static inline uint64_t ind(uint32_t port) {
-    uint64_t data;
-    __asm__ __volatile__("ld %0, 0(%1)": "=r" (data):"r" (0xFFFFFFFF00000000 + port));
-    return data;
-}
-
-static inline uint32_t inw(uint32_t port) {
-    uint32_t data;
-    __asm__ __volatile__("lw %0, 0(%1)": "=r" (data):"r" (0xFFFFFFFF00000000 + port));
-    return data;
-}
-
-static inline uint16_t inh(uint32_t port) {
-    uint16_t data;
-    __asm__ __volatile__("lh %0, 0(%1)": "=r" (data):"r" (0xFFFFFFFF00000000 + port));
-    return data;
-}
-
-static inline uint8_t inb(uint32_t port) {
-    uint16_t data;
-    __asm__ __volatile__("lb %0, 0(%1)": "=r" (data):"r" (0xFFFFFFFF00000000 + port));
-    return data;
-}
-
-static void putchar(const char c) {
+static inline void putchar(const char c) {
     outb(UART, c);
 }
 
-static void puts(const char *str) {
+#define PANIC(str) do { puts(str); while (1); } while(0);
+
+static inline void puts(const char *restrict str) {
     for (int i = 0; str[i] != 0; i++)
         putchar(str[i]);
 }
 
-static void putc(const char *str, const long c) {
-    for (int i = 0; i < c; i++)
-        putchar(str[i]);
+static inline int strcmp(const char*restrict lhs, const char*restrict rhs) {
+    for (uint64_t i = 0;; i++) {
+        if (rhs[i] == 0 || lhs[i] == 0)
+            return 1;
+
+        if (rhs[i] != lhs[i]) 
+            return 0;
+    }
 }
 
-void main(void) {
-    outd(0xC0001, 0x400); 
-    inw(0xC0000);
+#define seek(addr) outd(SD_SEEK, addr)
 
-    uint8_t  nl; // name length
-    uint16_t is; // inode size
-    uint32_t bs, itaddr, ioff; // block count, inode count, block size, inode table address, root dir inode offset
-    char name[256];
+uint32_t inode_size;
+uint32_t inode_table_address;
 
-    outd(0xC0001, 1024 + 24); 
-    bs = inw(0xC0000);
-    bs = 1024 << bs;
+uint32_t read_block(uint32_t block_pointer) {
+        seek(block_pointer);
 
-    outd(0xC0001, 1024 + 88); 
-    is = inh(0xC0000);
+        for (int directory_pointer = 0;;) {
+            directory_pointer += inh(SD_DATA + directory_pointer + 4);
+            name_length = inb(SD_DATA + directory_pointer + 6);
 
-    outd(0xC0001, (bs == 1024 ? bs * 2 : bs) + 8);  //  Block Group Descriptor Table 
-    itaddr = inw(0xC0000);
+            int j;
+            for (j = 0; j < name_length; j++) {
+                name_buffer[j] = inb(SD_DATA + directory_pointer + 8 + j);
+            }
+            name_buffer[j] = 0;
 
-    outd(0xC0001, itaddr * bs + is + 40); // Inode table 2nd entry - root dir
-    ioff = inw(0xC0000);
+            puts(name_buffer);
 
-    outd(0xC0001, ioff * bs + 6); // Root dir
-    nl = inb(0xC0000);
-    inb(0xC0000);
-    for (int i = 0; i < nl; i++)
-        name[i] = inb(0xC0000);
-    
-    puts("Hello UART world!\n");
-    puts("Dir name:");
-    putc(name, nl);
-    putchar('\n');
+            if (strcmp(name_buffer, name))
+                return inw(SD_DATA + directory_pointer);
+
+            if (directory_pointer % BLOCK_SIZE == 0)
+                break;
+        }
 }
 
-    /*
-    uint64_t t64;
+uint32_t get_dir_inode(uint32_t parent_inode, const char*restrict name) {
+    uint32_t block_pointers[15];
+    uint8_t name_length;
+    char name_buffer[256];
 
-    printf("disk has %#x blocks and %#x inodes, block size = %#x, total disk size = %#x\n", bc, ic, bs, bc * bs); // Good
-    */
+    seek(inode_table_address + ((parent_inode - 1) * inode_size) / BLOCK_SIZE);
+
+    for (int i = 0; i < 15; i++) 
+        block_pointers[i] = inw(SD_DATA + (parent_inode - 1) * inode_size + 40 + i * 4);
+
+    for (int i = 0; i < 13; i++) {
+        if (block_pointers[i] == 0)
+            break;
+
+        uint32_t ret = read_block(block_pointers[i]);
+        if (ret)
+            return ret;
+    }
+
+    puts(name); // Too lazy to write a strcat
+    PANIC(" directory not found!");
+}
+
+uintptr_t main(void) {
+    seek(0);
+    inode_size = inw(SD_DATA + 1024 + 88);
+
+    // Block group
+    seek(1);
+    inode_table_address = inw(SD_DATA + 8);
+
+    uint32_t inode = get_dir_inode(get_dir_inode(get_dir_inode(get_dir_inode(2, "System"), "Library"), "Kernel"), "kernel");
+
+    return 0;
+}

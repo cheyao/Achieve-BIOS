@@ -1,6 +1,6 @@
 .section .text
 .globl _start
 _start:
-  li x2, 0x1000
+  li x2, 0x100000
   call main
-  ebreak
+  jr a0

@@ -1,38 +1,46 @@
+# My mac's llvm is here
+export PATH := /usr/local/Cellar/llvm/15.0.7/bin:$(PATH)
+
 ASM_SOURCES := $(wildcard src/*.S) $(wildcard util/libgcc/*.S)
 C_SOURCES := $(wildcard src/*.c) $(wildcard util/libgcc/*.c)
 
-ASM_OBJ := $(subst src/,build/,$(ASM_SOURCES:.S=.o))
+OBJ := $(subst src/,build/,$(ASM_SOURCES:.S=.o) $(C_SOURCES:.c=.o))
 
-CC := riscv64-unknown-elf-gcc
-# CFLAGS := -Wall -Wextra -c -mcmodel=medany -ffreestanding -march=rv64id -mabi=lp64d -O2 -Wno-unused-variable -Wno-unused-but-set-variable -g
-
-CFLAGS := -fno-omit-frame-pointer -O2 -nostdlib -ffreestanding -std=c17 -static -Wno-unused-parameter \
-		  -Wno-unused-function -pedantic -Wall -Wextra -Wwrite-strings -Wstrict-prototypes -march=rv64i -mabi=lp64
+CC := clang
+CFLAGS := -fno-omit-frame-pointer -O2 -nostdlib -ffreestanding -std=c17 -static -Wno-unused-parameter --target=riscv64 \
+		  -pedantic -Wall -Wextra -Wwrite-strings -Wstrict-prototypes -march=rv64i -mabi=lp64 -flto \
+		  -I../AchieveOS/include -Wno-unused-function
 AS := riscv64-unknown-elf-as
 ASFLAGS := -march=rv64i -mabi=lp64
-LD := riscv64-unknown-elf-ld 
-LDFLAGS := -Wl,-Tlink.ld -Wl,-nostdlib
+LD := ld.lld
+LDFLAGS := -T link.ld -nostdlib
 OBJCOPY := riscv64-unknown-elf-objcopy
 
 all: AchieveBIOS.hex
 
 AchieveBIOS.hex: $(C_SOURCES) $(ASM_SOURCES)
 	@mkdir -p build 
-	make AchieveBIOSreal.hex
+	make -j16 AchieveBIOSreal.hex
 
 AchieveBIOSreal.hex: build/AchieveBIOS.bin util/bintohex
 	util/bintohex $< AchieveBIOS.hex 0x1fff
 
-build/AchieveBIOS.bin: $(C_SOURCES)$(ASM_OBJ)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(C_SOURCES) $(ASM_OBJ) -o build/AchieveBIOS.elf
+build/AchieveBIOS.bin: $(OBJ)
+	$(LD) $(LDFLAGS) $^ -o build/AchieveBIOS.elf
 	cp build/AchieveBIOS.elf $@
 	$(OBJCOPY) -O binary $@
+
+build/%.o: src/%.c
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 build/%.o: src/%.S
 	$(AS) $(ASFLAGS) -o $@ $<
 
-build/libgcc/%.o: util/libgcc/%.S
+build/libgcc/%.o: util/libgcc/%.c
 	$(CC) $(CFLAGS) -c -o $@ $<
+
+build/libgcc/%.o: util/libgcc/%.S
+	$(AS) $(CFLAGS) -o $@ $<
 
 util/bintohex: util/bintohex.c
 	gcc -o $@ $< -O2
