@@ -35,8 +35,21 @@ static inline int strcmp(const char*restrict lhs, const char*restrict rhs) {
 uint32_t inode_size;
 uint32_t inode_table_address;
 
-uint32_t read_block(uint32_t block_pointer) {
-        seek(block_pointer);
+uint32_t get_dir_inode(uint32_t parent_inode, const char*restrict name) {
+    uint8_t name_length;
+    char name_buffer[256];
+    uint32_t block_pointers[15];
+
+    seek(inode_table_address + ((parent_inode - 1) * inode_size) / BLOCK_SIZE);
+
+    for (int i = 0; i < 15; i++) 
+        block_pointers[i] = inw(SD_DATA + (parent_inode - 1) * inode_size + 40 + i * 4);
+
+    for (int i = 0; i < 13; i++) {
+        if (block_pointers[i] == 0)
+            break;
+
+        seek(block_pointers[i]);
 
         for (int directory_pointer = 0;;) {
             directory_pointer += inh(SD_DATA + directory_pointer + 4);
@@ -56,32 +69,28 @@ uint32_t read_block(uint32_t block_pointer) {
             if (directory_pointer % BLOCK_SIZE == 0)
                 break;
         }
-}
-
-uint32_t get_dir_inode(uint32_t parent_inode, const char*restrict name) {
-    uint32_t block_pointers[15];
-    uint8_t name_length;
-    char name_buffer[256];
-
-    seek(inode_table_address + ((parent_inode - 1) * inode_size) / BLOCK_SIZE);
-
-    for (int i = 0; i < 15; i++) 
-        block_pointers[i] = inw(SD_DATA + (parent_inode - 1) * inode_size + 40 + i * 4);
-
-    for (int i = 0; i < 13; i++) {
-        if (block_pointers[i] == 0)
-            break;
-
-        uint32_t ret = read_block(block_pointers[i]);
-        if (ret)
-            return ret;
     }
 
     puts(name); // Too lazy to write a strcat
-    PANIC(" directory not found!");
+    PANIC(" not found!");
+}
+
+void block_to_mem(uint64_t block, uint64_t mem) {
+    seek(block);
+    for (int i = 0; i < 0x1000; i += 4)
+        *((uint64_t *) mem + i) = ind(SD_DATA + i);
+}
+
+uintptr_t readelf(uint32_t inode) {
+    // Here comes the tough stuff :(
+    seek(inode_table_address + ((inode - 1) * inode_size) / BLOCK_SIZE);
+
+    seek(inw(SD_DATA + (inode - 1) * inode_size + 40)); // Go to block 0
 }
 
 uintptr_t main(void) {
+    puts("Achieve BIOS (Pre-Alpha)");
+
     seek(0);
     inode_size = inw(SD_DATA + 1024 + 88);
 
@@ -89,7 +98,5 @@ uintptr_t main(void) {
     seek(1);
     inode_table_address = inw(SD_DATA + 8);
 
-    uint32_t inode = get_dir_inode(get_dir_inode(get_dir_inode(get_dir_inode(2, "System"), "Library"), "Kernel"), "kernel");
-
-    return 0;
+    return readelf(get_dir_inode(get_dir_inode(get_dir_inode(get_dir_inode(2, "System"), "Library"), "Kernel"), "kernel"));
 }

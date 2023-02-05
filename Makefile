@@ -8,8 +8,9 @@ OBJ := $(subst src/,build/,$(ASM_SOURCES:.S=.o) $(C_SOURCES:.c=.o))
 
 CC := clang
 CFLAGS := -fno-omit-frame-pointer -O2 -nostdlib -ffreestanding -std=c17 -static -Wno-unused-parameter --target=riscv64 \
-		  -pedantic -Wall -Wextra -Wwrite-strings -Wstrict-prototypes -march=rv64i -mabi=lp64 -flto \
-		  -I../AchieveOS/include -Wno-unused-function
+		  -pedantic -Wall -Wextra -Wwrite-strings -Wstrict-prototypes -march=rv64i -mabi=lp64 -flto -fno-builtin \
+		  -I../AchieveOS/include -Wno-unused-function -fno-stack-protector -nodefaultlibs \
+		  -fms-extensions # -mno-red-zone -nostartfiles
 AS := riscv64-unknown-elf-as
 ASFLAGS := -march=rv64i -mabi=lp64
 LD := ld.lld

@@ -1,4 +1,4 @@
-ENTRY(_start)  
+ENTRY(_start)
 
 MEMORY {
     ROM (rx)  : ORIGIN = 0xFFFFFFFFFFFF0000, LENGTH = 0x0FFFF
