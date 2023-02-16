@@ -15,9 +15,22 @@ static inline void putchar(const char c) {
 
 #define PANIC(str) do { puts(str); while (1); } while(0);
 
+typedef struct pghr {
+    uint32_t p_type; /* Type of segment */
+    uint32_t p_flags; /* Segment attributes */
+    uintptr_t p_offset; /* Offset in file */
+    uintptr_t p_vaddr; /* Virtual address in memory */
+    uintptr_t p_paddr; /* Reserved */
+    uint64_t p_filesz; /* Size of segment in file */
+    uint64_t p_memsz; /* Size of segment in memory */
+    uint64_t p_align; /* Alignment of segment */
+} pghr;
+
 static inline void puts(const char *restrict str) {
     for (int i = 0; str[i] != 0; i++)
         putchar(str[i]);
+
+    putchar('\n');
 }
 
 static inline int strcmp(const char*restrict lhs, const char*restrict rhs) {
@@ -75,17 +88,39 @@ uint32_t get_dir_inode(uint32_t parent_inode, const char*restrict name) {
     PANIC(" not found!");
 }
 
-void block_to_mem(uint64_t block, uint64_t mem) {
-    seek(block);
-    for (int i = 0; i < 0x1000; i += 4)
-        *((uint64_t *) mem + i) = ind(SD_DATA + i);
+void block_to_mems(uint64_t number, uint64_t block, uint64_t mem) {
+    for (int i = 0; i < number; i++) {
+        seek(block + i);
+        for (uint64_t j = 0; j < 0x1000; j += 4)
+            *((uint64_t *) mem + j + i * BLOCK_SIZE) = ind(SD_DATA + j);
+    }
+}
+
+uint32_t getblock(uint32_t inode, uint64_t number) {
+    return ;
 }
 
 uintptr_t readelf(uint32_t inode) {
     // Here comes the tough stuff :(
     seek(inode_table_address + ((inode - 1) * inode_size) / BLOCK_SIZE);
 
-    seek(inw(SD_DATA + (inode - 1) * inode_size + 40)); // Go to block 0
+    seek(inw(SD_DATA + (inode - 1) * inode_size + 40)); // Go to block 0 of the file
+
+    // Check for elf header  \/ = 0x7F E L F
+    if (inw(SD_DATA) == 0x464C457F) {
+        puts("kernel recognised");
+
+        uintptr_t entry = ind(0x18), phoff = ind(0x20);
+        uint16_t phnum = inh(0x38);
+
+        block_to_mem(phoff % BLOCK_SIZE, inq(MEM_SIZE));
+
+        pghr hr = phoff / BLOCK_SIZE;
+
+        return entry;
+    } else /* if not elf */ {
+        PANIC("kernel is not elf!");
+    }
 }
 
 uintptr_t main(void) {

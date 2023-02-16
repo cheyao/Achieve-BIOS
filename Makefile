@@ -7,7 +7,7 @@ C_SOURCES := $(wildcard src/*.c) $(wildcard util/libgcc/*.c)
 OBJ := $(subst src/,build/,$(ASM_SOURCES:.S=.o) $(C_SOURCES:.c=.o))
 
 CC := clang
-CFLAGS := -fno-omit-frame-pointer -O2 -nostdlib -ffreestanding -std=c17 -static -Wno-unused-parameter --target=riscv64 \
+CFLAGS := -fno-omit-frame-pointer -O2 -nostdlib -ffreestanding -std=c2x -static -Wno-unused-parameter --target=riscv64 \
 		  -pedantic -Wall -Wextra -Wwrite-strings -Wstrict-prototypes -march=rv64i -mabi=lp64 -flto -fno-builtin \
 		  -I../AchieveOS/include -Wno-unused-function -fno-stack-protector -nodefaultlibs \
 		  -fms-extensions # -mno-red-zone -nostartfiles
@@ -16,6 +16,8 @@ ASFLAGS := -march=rv64i -mabi=lp64
 LD := ld.lld
 LDFLAGS := -T link.ld -nostdlib
 OBJCOPY := riscv64-unknown-elf-objcopy
+
+.PHONY: all dis clang-tidy clean dissasemble
 
 all: AchieveBIOS.hex
 
@@ -48,6 +50,9 @@ util/bintohex: util/bintohex.c
 
 clean:
 	@-rm -rf build AchieveBIOS.hex
+
+clang-tidy: $(C_SOURCES)
+	clang-tidy $(CFLAGS) $^
 
 dis: dissasemble
 dissasemble: build/AchieveBIOS.bin
