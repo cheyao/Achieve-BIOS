@@ -27,5 +27,5 @@ SECTIONS {
    .bss ALIGN(8): {
       *(.bss*)
       . = ALIGN(8);
-   } > RAM
+   } > ROM
 }
