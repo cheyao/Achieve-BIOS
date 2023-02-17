@@ -2,9 +2,9 @@
  * @brief Minimal
  */
 
-#include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #include <attributes.h>
 #include <kernel/ports.h>
@@ -29,19 +29,20 @@ typedef struct pghr {
 } pghr;
 
 static inline void puts(const char *restrict str) {
-    for (int i = 0; str[i] != 0; i++)
+    for (int i = 0; str[i] != 0; i++) {
         putchar(str[i]);
-
-    putchar('\n');
+    }
 }
 
 static inline int strcmp(const char*restrict lhs, const char*restrict rhs) {
     for (uint64_t i = 0;; i++) {
-        if (rhs[i] == 0 || lhs[i] == 0)
+        if (rhs[i] == 0 || lhs[i] == 0) {
             return 1;
+        }
 
-        if (rhs[i] != lhs[i]) 
+        if (rhs[i] != lhs[i]) {
             return 0;
+        }
     }
 }
 
@@ -57,12 +58,14 @@ uint32_t get_dir_inode(uint32_t parent_inode, const char*restrict name) {
 
     seek((*inode_table_address) + ((parent_inode - 1) * (*inode_size)) / BLOCK_SIZE);
 
-    for (int i = 0; i < 15; i++) 
+    for (int i = 0; i < 15; i++) {
         block_pointers[i] = inw(SD_DATA + (parent_inode - 1) * (*inode_size) + 40 + i * 4);
+    }
 
     for (int i = 0; i < 13; i++) {
-        if (block_pointers[i] == 0)
+        if (block_pointers[i] == 0) {
             break;
+        }
 
         seek(block_pointers[i]);
 
@@ -78,20 +81,22 @@ uint32_t get_dir_inode(uint32_t parent_inode, const char*restrict name) {
 
             puts(name_buffer);
 
-            if (strcmp(name_buffer, name))
+            if (strcmp(name_buffer, name) != 0) {
                 return inw(SD_DATA + directory_pointer);
+            }
 
-            if (directory_pointer % BLOCK_SIZE == 0)
+            if (directory_pointer % BLOCK_SIZE == 0) {
                 break;
+            }
         }
     }
 
     puts(name); // Too lazy to write a strcat
-    PANIC(" not found!");
+    PANIC(" not found!\n");
 }
 
 uint32_t getblock(uint32_t inode, uint64_t number) {
-    return ;
+    return 0;
 }
 
 uintptr_t readelf(uint32_t inode) {
@@ -102,19 +107,21 @@ uintptr_t readelf(uint32_t inode) {
 
     // Check for elf header  \/ = 0x7F E L F
     if (inw(SD_DATA) == 0x464C457F) {
-        puts("kernel recognised");
+        puts("kernel recognised\n");
 
-        uintptr_t program_entry = ind(0x18), phoff = ind(0x20);
-        uint16_t entsize = inh(0x36), phnum = inh(0x38);
+        uintptr_t program_entry = ind(0x18);
+        uintptr_t phoff = ind(0x20);
+        uint16_t entsize = inh(0x36);
+        uint16_t phnum = inh(0x38);
         
-        pghr* hr = BUILTIN_ALLOC(phnum * entsize); // Alloc this on stack, which is effectivly at the end of memory
+        pghr* hr = BUILTIN_ALLOC((unsinged long) phnum * entsize); // Alloc this on stack, which is effectivly at the end of memory
 
         
-
         return program_entry;
-    } else /* if not elf */ {
-        PANIC("kernel is not elf!");
     }
+    
+    /* not elf */
+    PANIC("kernel is not elf!\n");
 }
 
 uintptr_t main(void) {

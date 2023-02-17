@@ -16,6 +16,7 @@ ASFLAGS := -march=rv64i -mabi=lp64
 LD := ld.lld
 LDFLAGS := -T link.ld -nostdlib
 OBJCOPY := riscv64-unknown-elf-objcopy
+CT ?= clang-tidy
 
 .PHONY: all dis clang-tidy clean dissasemble
 
@@ -52,7 +53,7 @@ clean:
 	@-rm -rf build AchieveBIOS.hex
 
 clang-tidy: $(C_SOURCES)
-	clang-tidy $(CFLAGS) $^
+	-@$(CT) $^ --system-headers --checks=*,-altera-struct-pack-align,-altera-id-dependent-backward-branch,-cppcoreguidelines-*,-readability-magic-numbers,-cppcoreguidelines-avoid-magic-numbers,-hicpp-no-assembler,-llvm-header-guard,-bugprone-easily-swappable-parameters,-modernize-macro-to-enum,-cert-dcl51-cpp,-cert-dcl37-c,-bugprone-reserved-identifier,-readability-identifier-length,-altera-unroll-loops --warnings-as-errors=* -header-filter='.*' -- $(CFLAGS) 
 
 dis: dissasemble
 dissasemble: build/AchieveBIOS.bin
