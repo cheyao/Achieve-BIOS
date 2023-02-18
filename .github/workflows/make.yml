@@ -23,6 +23,7 @@ jobs:
       run: |
         sudo apt-get -y install llvm
         sudo apt-get -y install lld
+        ls
     - name: make
       run: CC=clang LD=ld.lld make -C Achieve-BIOS
     - name: check syntax
