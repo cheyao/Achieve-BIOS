@@ -17,13 +17,15 @@ jobs:
     steps:
     - name: Check out repo
       uses: actions/checkout@v3
+      with:
+        repository: cheyao/Achieve-Core
     - name: Install tools
       run: |
         sudo apt-get -y install llvm
         sudo apt-get -y install lld
     - name: make
-      run: CC=clang LD=ld.lld make
+      run: cd Achieve-BIOS && CC=clang LD=ld.lld make
     - name: check syntax
       run: |
         echo "\`\`\`\n" >> $GITHUB_STEP_SUMMARY
-        make clang-tidy >> $GITHUB_STEP_SUMMARY
+        cd Achieve-BIOS && make clang-tidy >> $GITHUB_STEP_SUMMARY
