@@ -17,7 +17,7 @@ int main(int argc, char **argv) {
 	uint64_t size = strtol(argv[3], NULL, 16);
 
 	uint64_t t = 0;
-	uint64_t k;
+	long long unsigned int k;
 	while (1) {
 		if (fread(&k, sizeof k, 1, i) != 1)
 			break;
