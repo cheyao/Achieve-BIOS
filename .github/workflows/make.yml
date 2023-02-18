@@ -24,8 +24,8 @@ jobs:
         sudo apt-get -y install llvm
         sudo apt-get -y install lld
     - name: make
-      run: cd Achieve-BIOS && CC=clang LD=ld.lld make
+      run: CC=clang LD=ld.lld make -C Achieve-BIOS
     - name: check syntax
       run: |
         echo "\`\`\`\n" >> $GITHUB_STEP_SUMMARY
-        cd Achieve-BIOS && make clang-tidy >> $GITHUB_STEP_SUMMARY
+        make -C Achieve-BIOS clang-tidy >> $GITHUB_STEP_SUMMARY
