@@ -1,7 +1,6 @@
 /*
- * @brief Minimal
+ * 
  */
-
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -48,18 +47,15 @@ static inline int strcmp(const char*restrict lhs, const char*restrict rhs) {
 
 #define seek(addr) outd(SD_SEEK, addr)
 
-uint32_t* inode_size;
-uint32_t* inode_table_address;
-
-uint32_t get_dir_inode(uint32_t parent_inode, const char*restrict name) {
+uint32_t get_dir_inode(uint32_t parent_inode, const char*restrict name, uint32_t inode_size, uint32_t inode_table_address) {
     uint8_t name_length;
     char name_buffer[256];
     uint32_t block_pointers[15];
 
-    seek((*inode_table_address) + ((parent_inode - 1) * (*inode_size)) / BLOCK_SIZE);
+    seek(inode_table_address + ((parent_inode - 1) * inode_size) / BLOCK_SIZE);
 
     for (int i = 0; i < 15; i++) {
-        block_pointers[i] = inw(SD_DATA + (parent_inode - 1) * (*inode_size) + 40 + i * 4);
+        block_pointers[i] = inw(SD_DATA + (parent_inode - 1) * inode_size + 40 + i * 4);
     }
 
     for (int i = 0; i < 13; i++) {
@@ -80,6 +76,7 @@ uint32_t get_dir_inode(uint32_t parent_inode, const char*restrict name) {
             name_buffer[j] = 0;
 
             puts(name_buffer);
+            putchar('\n');
 
             if (strcmp(name_buffer, name) != 0) {
                 return inw(SD_DATA + directory_pointer);
@@ -95,15 +92,16 @@ uint32_t get_dir_inode(uint32_t parent_inode, const char*restrict name) {
     PANIC(" not found!\n");
 }
 
-uint32_t getblock(uint32_t inode, uint64_t number) {
+uint32_t get_block_address(uint32_t inode, uint64_t number) {
     return 0;
 }
 
-uintptr_t readelf(uint32_t inode) {
+uintptr_t readelf(uint32_t inode, uint32_t inode_size, uint32_t inode_table_address) {
     // Here comes the tough stuff :(
-    seek((*inode_table_address) + ((inode - 1) * (*inode_size)) / BLOCK_SIZE);
-
-    seek(inw(SD_DATA + (inode - 1) * (*inode_size) + 40)); // Go to block 0 of the file
+    uint32_t pointers[15];
+    seek(inode_table_address + ((inode - 1) * inode_size) / BLOCK_SIZE);
+    
+    seek(inw(SD_DATA + (inode - 1) * inode_size + 40)); // Go to block 0 of the file
 
     // Check for elf header  \/ = 0x7F E L F
     if (inw(SD_DATA) == 0x464C457F) {
@@ -114,29 +112,37 @@ uintptr_t readelf(uint32_t inode) {
         uint16_t entsize = inh(0x36);
         uint16_t phnum = inh(0x38);
         
-        pghr* hr = BUILTIN_ALLOC((unsinged long) phnum * entsize); // Alloc this on stack, which is effectivly at the end of memory
+        pghr* hr = BUILTIN_ALLOC((unsigned long) phnum * entsize); // Alloc this on stack, which is effectivly at the end of memory
 
+        for (uint_fast32_t i = 0; i < phnum * entsize && i < 0x1000; i++) {
+            ((uint8_t *) hr)[i] = inb(i);
+        }
+
+        // Loop through the prog headers
+        for (uint_fast32_t i = 0; i < phnum; i++) {
+            
+        }
         
         return program_entry;
     }
     
     /* not elf */
-    PANIC("kernel is not elf!\n");
+    PANIC("PANIC! kernel is not elf!\n");
 }
 
 uintptr_t main(void) {
-    // Use the stack to avoid global variables
-    inode_size = BUILTIN_ALLOC(sizeof(uint32_t));
-    inode_table_address = BUILTIN_ALLOC(sizeof(uint32_t));
-    
     puts("Achieve BIOS (Pre-Alpha)\n\n");
 
     seek(0);
-    *inode_size = inw(SD_DATA + 1024 + 88);
+    uint32_t inode_size = inw(SD_DATA + 1024 + 88);
 
     // Block group
     seek(1);
-    *inode_table_address = inw(SD_DATA + 8);
+    uint32_t inode_table_address = inw(SD_DATA + 8);
 
-    return readelf(get_dir_inode(get_dir_inode(get_dir_inode(get_dir_inode(2, "System"), "Library"), "Kernel"), "kernel"));
+    return readelf(get_dir_inode(get_dir_inode(get_dir_inode(get_dir_inode(2, "System" , inode_size, inode_table_address), 
+                                                                              "Library", inode_size, inode_table_address), 
+                                                                              "Kernel" , inode_size, inode_table_address), 
+                                                                              "kernel" , inode_size, inode_table_address)
+                                                                                       , inode_size, inode_table_address);
 }

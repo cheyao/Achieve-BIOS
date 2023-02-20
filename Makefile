@@ -10,20 +10,21 @@ CC := clang
 CFLAGS := -fno-omit-frame-pointer -O2 -nostdlib -ffreestanding -std=c2x -static -Wno-unused-parameter --target=riscv64 \
 		  -pedantic -Wall -Wextra -Wwrite-strings -Wstrict-prototypes -march=rv64i -mabi=lp64 -flto -fno-builtin \
 		  -I../AchieveOS/include -Wno-unused-function -fno-stack-protector -nodefaultlibs \
-		  -fms-extensions # -mno-red-zone -nostartfiles
-AS := riscv64-unknown-elf-as
-ASFLAGS := -march=rv64i -mabi=lp64
+		  -fms-extensions -fno-PIC
+AS := clang
+ASFLAGS := --target=riscv64 -march=rv64i -mabi=lp64 -nostdlib
 LD := ld.lld
 LDFLAGS := -T link.ld -nostdlib
 OBJCOPY := riscv64-unknown-elf-objcopy
-CT ?= clang-tidy
+CT := clang-tidy
 
 .PHONY: all dis clang-tidy clean dissasemble
 
 all: AchieveBIOS.hex
 
 AchieveBIOS.hex: $(C_SOURCES) $(ASM_SOURCES)
-	@mkdir -p build 
+	@mkdir -p build
+	@mkdir -p build/tests
 	make -j16 AchieveBIOSreal.hex
 
 AchieveBIOSreal.hex: build/AchieveBIOS.bin util/bintohex
@@ -35,16 +36,16 @@ build/AchieveBIOS.bin: $(OBJ)
 	$(OBJCOPY) -O binary $@
 
 build/%.o: src/%.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) -c $< -o $@
 
 build/%.o: src/%.S
-	$(AS) $(ASFLAGS) -o $@ $<
+	$(AS) $(ASFLAGS) -c $< -o $@
 
 build/libgcc/%.o: util/libgcc/%.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) -c $< -o $@
 
 build/libgcc/%.o: util/libgcc/%.S
-	$(AS) $(CFLAGS) -o $@ $<
+	$(AS) $(CFLAGS) -c $< -o $@
 
 util/bintohex: util/bintohex.c
 	gcc -o $@ $< -O2
