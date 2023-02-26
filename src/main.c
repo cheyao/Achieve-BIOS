@@ -6,6 +6,7 @@
 #include <stdint.h>
 
 #include <attributes.h>
+#include <elf.h>
 #include <kernel/ports.h>
 
 #define BLOCK_SIZE 4096
@@ -92,20 +93,34 @@ uint32_t get_dir_inode(uint32_t parent_inode, const char*restrict name, uint32_t
     PANIC(" not found!\n");
 }
 
-uint32_t get_block_address(uint32_t inode, uint64_t number) {
+uint32_t get_block_address_real(uint32_t block, uint64_t number) {
+    seek(block);
+    return inw(SD_DATA + number * sizeof(uint32_t));
+}
+
+uint32_t get_block_address(uint32_t indoe_block, uint64_t number) {
+    seek(indoe_block);
+    uint32_t pointers[15];
+
+    #pragma unroll 2
+    for (int i = 0; i < 15; i++) {
+        pointers[i] = inw(40 + i * sizeof(uint32_t));
+    }
+    
     return 0;
 }
 
 uintptr_t readelf(uint32_t inode, uint32_t inode_size, uint32_t inode_table_address) {
     // Here comes the tough stuff :(
     uint32_t pointers[15];
+    outw(0xFFFEFFFF, inw(SD_DATA));
     seek(inode_table_address + ((inode - 1) * inode_size) / BLOCK_SIZE);
     
-    seek(inw(SD_DATA + (inode - 1) * inode_size + 40)); // Go to block 0 of the file
+    seek(inw(SD_DATA + (inode - 1) * inode_size + 40)); // Go to the start of the file to get 
 
     // Check for elf header  \/ = 0x7F E L F
     if (inw(SD_DATA) == 0x464C457F) {
-        puts("kernel recognised\n");
+        puts("kernel recognised\n"); 
 
         uintptr_t program_entry = ind(0x18);
         uintptr_t phoff = ind(0x20);
@@ -114,13 +129,16 @@ uintptr_t readelf(uint32_t inode, uint32_t inode_size, uint32_t inode_table_addr
         
         pghr* hr = BUILTIN_ALLOC((unsigned long) phnum * entsize); // Alloc this on stack, which is effectivly at the end of memory
 
-        for (uint_fast32_t i = 0; i < phnum * entsize && i < 0x1000; i++) {
+        seek(get_block_address(inode, phoff));
+        for (uint_fast32_t i = phoff % BLOCK_SIZE; i < phnum * entsize + phoff % BLOCK_SIZE; i++) {
             ((uint8_t *) hr)[i] = inb(i);
         }
 
         // Loop through the prog headers
         for (uint_fast32_t i = 0; i < phnum; i++) {
-            
+            if (i == PT_LOAD) {
+                
+            }
         }
         
         return program_entry;

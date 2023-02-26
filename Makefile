@@ -7,9 +7,9 @@ C_SOURCES := $(wildcard src/*.c) $(wildcard util/libgcc/*.c)
 OBJ := $(subst src/,build/,$(ASM_SOURCES:.S=.o) $(C_SOURCES:.c=.o))
 
 CC := clang
-CFLAGS := -fno-omit-frame-pointer -O2 -nostdlib -ffreestanding -std=c2x -static -Wno-unused-parameter --target=riscv64 \
+CFLAGS := -fno-omit-frame-pointer -Os -nostdlib -ffreestanding -std=c2x -static --target=riscv64 \
 		  -pedantic -Wall -Wextra -Wwrite-strings -Wstrict-prototypes -march=rv64i -mabi=lp64 -flto -fno-builtin \
-		  -I../AchieveOS/include -Wno-unused-function -fno-stack-protector -nodefaultlibs \
+		  -I../AchieveOS/include -fno-stack-protector -nodefaultlibs \
 		  -fms-extensions -fno-PIC
 AS := clang
 ASFLAGS := --target=riscv64 -march=rv64i -mabi=lp64 -nostdlib
@@ -25,7 +25,7 @@ all: AchieveBIOS.hex
 AchieveBIOS.hex: $(C_SOURCES) $(ASM_SOURCES)
 	@mkdir -p build
 	@mkdir -p build/tests
-	make -j16 AchieveBIOSreal.hex
+	make AchieveBIOSreal.hex
 
 AchieveBIOSreal.hex: build/AchieveBIOS.bin util/bintohex
 	util/bintohex $< AchieveBIOS.hex 0x1fff
